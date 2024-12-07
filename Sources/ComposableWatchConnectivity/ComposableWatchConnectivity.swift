@@ -17,7 +17,7 @@ public enum WatchConnectivityError: Error, Equatable {
 
 @DependencyClient
 public struct WatchConnectivityClient: Sendable {
-    public  Action: Equatable {
+    public enum Action: Equatable, Sendable {
         case activationDidCompleteWith(WCSessionActivationState)
         case sessionDidBecomeInactive(WCSession)
         case sessionDidDeativate(WCSession)
@@ -37,13 +37,13 @@ public extension DependencyValues {
     }
 }
 
-public extension WatchConnectivityClient: DependencyKey {
+extension WatchConnectivityClient: DependencyKey {
     public static let testValue = Self(activate: { fatalError()}, send: { _ in fatalError() }, delegate: { .never })
     public static let liveValue = Self.live
 }
 
 public extension WatchConnectivityClient {
-    public static var live: Self {
+    static var live: Self {
         let task = Task<WatchConnectivitySendableBox, Never> { @MainActor in
             let service = WatchConnectivityService()
             return .init(client: service)
@@ -108,8 +108,7 @@ final class WatchConnectivityService: NSObject, Sendable, WCSessionDelegate {
     private func send(_ action: WatchConnectivityClient.Action) {
         Task { [continuations] in
             continuations.withValue {
-                $0.values.forEach { $0.yield(action)
-                }
+                $0.values.forEach { $0.yield(action) }
             }
         }
     }
