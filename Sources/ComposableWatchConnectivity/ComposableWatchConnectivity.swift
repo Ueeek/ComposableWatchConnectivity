@@ -9,15 +9,15 @@
 import ComposableArchitecture
 import Foundation
 
-enum WatchConnectivityError: Error, Equatable {
+public enum WatchConnectivityError: Error, Equatable {
     case sessionNotActive
     case sessionNotReachable
     case other(String)
 }
 
 @DependencyClient
-struct WatchConnectivityClient: Sendable {
-    enum Action: Equatable {
+public struct WatchConnectivityClient: Sendable {
+    public  Action: Equatable {
         case activationDidCompleteWith(WCSessionActivationState)
         case sessionDidBecomeInactive(WCSession)
         case sessionDidDeativate(WCSession)
@@ -30,19 +30,19 @@ struct WatchConnectivityClient: Sendable {
     public var delegate: @Sendable () async -> AsyncStream<Action> = { .never }
 }
 
-extension DependencyValues {
+public extension DependencyValues {
     var watchConnectivityClient: WatchConnectivityClient {
         get { self[WatchConnectivityClient.self] }
         set { self[WatchConnectivityClient.self] = newValue }
     }
 }
 
-extension WatchConnectivityClient: DependencyKey {
+public extension WatchConnectivityClient: DependencyKey {
     public static let testValue = Self(activate: { fatalError()}, send: { _ in fatalError() }, delegate: { .never })
     public static let liveValue = Self.live
 }
 
-extension WatchConnectivityClient {
+public extension WatchConnectivityClient {
     public static var live: Self {
         let task = Task<WatchConnectivitySendableBox, Never> { @MainActor in
             let service = WatchConnectivityService()
