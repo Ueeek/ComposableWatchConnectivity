@@ -30,8 +30,8 @@ public struct WatchConnectivityClient: Sendable {
     public var delegate: @Sendable () async -> AsyncStream<Action> = { .never }
 }
 
-public extension DependencyValues {
-    var watchConnectivityClient: WatchConnectivityClient {
+extension DependencyValues {
+    public var watchConnectivityClient: WatchConnectivityClient {
         get { self[WatchConnectivityClient.self] }
         set { self[WatchConnectivityClient.self] = newValue }
     }
