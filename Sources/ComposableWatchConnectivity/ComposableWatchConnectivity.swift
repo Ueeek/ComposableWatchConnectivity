@@ -22,11 +22,13 @@ public struct WatchConnectivityClient: Sendable {
         case sessionDidBecomeInactive(WCSession)
         case sessionDidDeativate(WCSession)
         case didReceiveMessage([String: Data]?)
+        case didReceiveUserInfo([String: Data]?)
         case sendFail(WatchConnectivityError)
     }
     
     public var activate: @Sendable () async -> Void
-    public var send: @Sendable((String, Data)) async -> Void
+    public var sendMessage: @Sendable((String, Data)) async -> Void
+    public var transferUserInfo: @Sendable((String, Data)) async -> Void
     public var delegate: @Sendable () async -> AsyncStream<Action> = { .never }
 }
 
@@ -38,7 +40,7 @@ extension DependencyValues {
 }
 
 extension WatchConnectivityClient: DependencyKey {
-    public static let testValue = Self(activate: { fatalError()}, send: { _ in fatalError() }, delegate: { .never })
+    public static let testValue = Self(activate: { fatalError()}, sendMessage: { _ in fatalError() }, transferUserInfo: { _ in fatalError()}, delegate: { .never })
     public static let liveValue = Self.live
 }
 
@@ -53,8 +55,11 @@ public extension WatchConnectivityClient {
             activate: { @MainActor in
                 await task.value.client.activate()
             },
-            send: { @MainActor key, data in
+            sendMessage: { @MainActor key, data in
                 await task.value.client.sendData(key: key, data: data)
+            },
+            transferUserInfo: { @MainActor key, data in
+                await task.value.client.transferUserInfo(key: key, data: data)
             },
             delegate: { @MainActor in
                 let delegate = await task.value.client
@@ -131,6 +136,17 @@ final class WatchConnectivityService: NSObject, Sendable, WCSessionDelegate {
         }
     }
     
+    func transferUserInfo(key: String, data: Data) {
+        guard session.activationState == .activated else {
+            send(.sendFail(.sessionNotActive))
+            return
+        }
+        
+        Task.detached(priority: .medium) { [self] in
+            session.transferUserInfo([key: data])
+        }
+    }
+    
     func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: (any Error)?) {
         send(.activationDidCompleteWith(activationState))
     }
@@ -155,5 +171,10 @@ final class WatchConnectivityService: NSObject, Sendable, WCSessionDelegate {
         replyHandler(message)
         let receivedData = message as? [String: Data]
         send(.didReceiveMessage(receivedData))
+    }
+    
+    func session(_ session: WCSession, didReceiveUserInfo userInfo: [String : Any]) {
+        let receivedData = userInfo as? [String: Data]
+        send(.didReceiveUserInfo(receivedData))
     }
 }
