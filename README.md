@@ -1,1 +1,2 @@
-https://zenn.dev/ueeek/articles/20241215tca_watchconnectivity
+Motivation & Sample
+* https://zenn.dev/ueeek/articles/20241215tca_watchconnectivity
