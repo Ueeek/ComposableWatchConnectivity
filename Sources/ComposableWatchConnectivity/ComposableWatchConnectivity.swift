@@ -23,12 +23,14 @@ public struct WatchConnectivityClient: Sendable {
         case sessionDidDeativate(WCSession)
         case didReceiveMessage([String: Data]?)
         case didReceiveUserInfo([String: Data]?)
+        case didReceiveApplicationContext([String: Data]?)
         case sendFail(WatchConnectivityError)
     }
     
     public var activate: @Sendable () async -> Void
     public var sendMessage: @Sendable((String, Data)) async -> Void
     public var transferUserInfo: @Sendable((String, Data)) async -> Void
+    public var updateApplicationContext: @Sendable((String, Data)) async -> Void
     public var delegate: @Sendable () async -> AsyncStream<Action> = { .never }
 }
 
@@ -40,7 +42,7 @@ extension DependencyValues {
 }
 
 extension WatchConnectivityClient: DependencyKey {
-    public static let testValue = Self(activate: { fatalError()}, sendMessage: { _ in fatalError() }, transferUserInfo: { _ in fatalError()}, delegate: { .never })
+    public static let testValue = Self(activate: { fatalError()}, sendMessage: { _ in fatalError() }, transferUserInfo: { _ in fatalError()}, updateApplicationContext: { _ in fatalError() }, delegate: { .never })
     public static let liveValue = Self.live
 }
 
@@ -61,6 +63,10 @@ public extension WatchConnectivityClient {
             transferUserInfo: { @MainActor key, data in
                 await task.value.client.transferUserInfo(key: key, data: data)
             },
+            updateApplicationContext: { @MainActor key, data in
+                await task.value.client.updateApplicationContext(key: key, data: data)
+            }
+            ,
             delegate: { @MainActor in
                 let delegate = await task.value.client
                 return AsyncStream { delegate.registerContinuation($0) }
@@ -144,6 +150,21 @@ final class WatchConnectivityService: NSObject, Sendable, WCSessionDelegate {
         
         Task.detached(priority: .medium) { [self] in
             session.transferUserInfo([key: data])
+        }
+    }
+    
+    func updateApplicationContext(key: String, data: Data) {
+        guard session.activationState == .activated else {
+            send(.sendFail(.sessionNotActive))
+            return
+        }
+        
+        Task.detached(priority: .medium) { [self] in
+            do {
+                try session.updateApplicationContext([key: data])
+            } catch (let error) {
+                send(.sendFail(.other(error.localizedDescription)))
+            }
         }
     }
     
