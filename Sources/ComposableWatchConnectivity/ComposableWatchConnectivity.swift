@@ -198,4 +198,9 @@ final class WatchConnectivityService: NSObject, Sendable, WCSessionDelegate {
         let receivedData = userInfo as? [String: Data]
         send(.didReceiveUserInfo(receivedData))
     }
+    
+    func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String : Any]) {
+        let receivedData = applicationContext as? [String: Data]
+        send(.didReceiveApplicationContext(receivedData))
+    }
 }
